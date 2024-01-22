@@ -53,81 +53,84 @@ def get_args():
     parser.add_argument("--loop", default=1)
     return parser.parse_args(args=[])
 
+def main():
+    opt = get_args()
+    print(opt)
 
-opt = get_args()
-print(opt)
+    def load_data(use_data):
+        loaders = {
+            'mnist': DataLoad().load_data_mnist,
+            'f_mnist': DataLoad().load_data_f_mnist,
+            'cifar10': DataLoad().load_data_cifar10,
+            'cifar100': DataLoad().load_data_cifar100,
+            'celeba': DataLoad().load_data_celeba,
+            'lsun': DataLoad().load_data_lsun
+        }
+        return loaders.get(use_data, lambda: print('train loader error'))(batch_size=opt.batch_size)
 
-def load_data(use_data):
-    loaders = {
-        'mnist': DataLoad().load_data_mnist,
-        'f_mnist': DataLoad().load_data_f_mnist,
-        'cifar10': DataLoad().load_data_cifar10,
-        'cifar100': DataLoad().load_data_cifar100,
-        'celeba': DataLoad().load_data_celeba,
-        'lsun': DataLoad().load_data_lsun
+    for i, name in enumerate(loss_function_name):
+        print(f'{i} : {name}')
+    print("9 : all model")
+
+    model_select = int(input("loss number :  "))
+
+    dataset_info = {
+        'mnist': (25, 1),
+        'f_mnist': (25, 1),
+        'cifar10': (64, 3),
+        'cifar100': (64, 3),
+        'celeba': (64, 3),
+        'lsun': (64, 3)
     }
-    return loaders.get(use_data, lambda: print('train loader error'))(batch_size=opt.batch_size)
+    n_image, channel = dataset_info.get(opt.dataset, (None, None))
 
-for i, name in enumerate(loss_function_name):
-    print(f'{i} : {name}')
-print("9 : all model")
+    fix_z = Variable(Tensor(np.random.normal(0, 1, (n_image, opt.latent_dim))).to(DEVICE))
 
-model_select = int(input("loss number :  "))
+    loop_start = 100
+    all_model = 107
+    for model_loop in range(loop_start, all_model, 1):
+        rmb = -1
+        if model_select == 9:
+            rmb = 1
+            model_select = model_loop - 100
 
-dataset_info = {
-    'mnist': (25, 1),
-    'f_mnist': (25, 1),
-    'cifar10': (64, 3),
-    'cifar100': (64, 3),
-    'celeba': (64, 3),
-    'lsun': (64, 3)
-}
-n_image, channel = dataset_info.get(opt.dataset, (None, None))
+        # image save path
+        savepath = createFolder(
+            f"../result/H{opt.n_bin}_B{opt.batch_size}_lr{opt.Glr}_{opt.Dlr}/{opt.dataset}_images/{loss_function_name[model_select]}/")
+        png_path = createFolder(f'{savepath}png/')
 
-fix_z = Variable(Tensor(np.random.normal(0, 1, (n_image, opt.latent_dim))).to(DEVICE))
+        train_loader = load_data(opt.dataset)
 
-loop_start = 100
-all_model = 107
-for model_loop in range(loop_start, all_model, 1):
-    rmb = -1
-    if model_select == 9:
-        rmb = 1
-        model_select = model_loop - 100
+        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun']:
+            real_imgs_fid = createFolder(f'../../../data/sample/{opt.dataset}')
+            save_samples_from_loader(train_loader, real_imgs_fid)
 
-    # image save path
-    savepath = createFolder(
-        f"../result/H{opt.n_bin}_B{opt.batch_size}_lr{opt.Glr}_{opt.Dlr}/{opt.dataset}_images/{loss_function_name[model_select]}/")
-    png_path = createFolder(f'{savepath}png/')
+        # Loss function
+        loss_function = [Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord]
 
-    train_loader = load_data(opt.dataset)
+        if model_select == 0:
+            print('wgan')
+        elif model_select == 1:
+            print('lsgan')
+        else:
+            adversarial_loss = loss_function[model_select - 2](opt.batch_size, opt.n_bin).to(DEVICE)
+            print(loss_function[model_select - 2])
 
-    if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun']:
-        real_imgs_fid = createFolder(f'../../../data/sample/{opt.dataset}')
-        save_samples_from_loader(train_loader, real_imgs_fid)
+        # load model
+        generator = torch.load(savepath + "G_").to(DEVICE)
+        discriminator = torch.load(savepath + "D_").to(DEVICE)
 
-    # Loss function
-    loss_function = [Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord]
+        generator.eval()
+        gen_imgs_fix = generator(fix_z)
+        save_image(gen_imgs_fix.data[:9], f"{png_path}/{loss_function_name[model_select]}.tiff", nrow=3, normalize=True, dpi=300)
+        print(loss_function_name[model_select])
 
-    if model_select == 0:
-        print('wgan')
-    elif model_select == 1:
-        print('lsgan')
-    else:
-        adversarial_loss = loss_function[model_select - 2](opt.batch_size, opt.n_bin).to(DEVICE)
-        print(loss_function[model_select - 2])
+        if rmb == 1:
+            model_select = 9
+            model_loop = 1
 
-    # load model
-    generator = torch.load(savepath + "G_").to(DEVICE)
-    discriminator = torch.load(savepath + "D_").to(DEVICE)
+        if model_loop == loop_start:
+            break
 
-    generator.eval()
-    gen_imgs_fix = generator(fix_z)
-    save_image(gen_imgs_fix.data[:9], f"{png_path}/{loss_function_name[model_select]}.tiff", nrow=3, normalize=True, dpi=300)
-    print(loss_function_name[model_select])
-
-    if rmb == 1:
-        model_select = 9
-        model_loop = 1
-
-    if model_loop == loop_start:
-        break
+if __name__ == "__main__":
+    main()
