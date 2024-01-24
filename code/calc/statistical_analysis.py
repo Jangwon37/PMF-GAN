@@ -132,43 +132,6 @@ for parameter in os.listdir(path):
 
                             responses_path = os.path.join(model_path, 'responses')
                             if os.path.exists(f"{responses_path}/array/") and os.path.isdir(f"{responses_path}/array/"):
-                                # combined_epochs
-                                plt.figure(figsize=(10, 5))
-                                plt.xlabel('Discriminator Responses')
-                                plt.ylabel('Likelihood')
-
-                                for i, D_epoch in enumerate(D_epochs + [final_D_epoch]):
-                                    generated, real = load_responses(D_epoch)
-                                    alpha_value = 0.8 if D_epoch == final_D_epoch else 0.2 + (i / (len(D_epochs) + 1) * 0.5)
-                                    plot_histogram(generated, real, bins, alpha_value, 'blue', 'red')
-
-                                plt.legend(['Generated', 'Real'])
-                                plt.xticks(fontsize=15)
-                                plt.yticks(fontsize=15)
-                                plt.tight_layout()
-                                # plt.savefig(f"{responses_path}/combined_epochs.tiff", dpi=300)
-                                # plt.show()
-                                plt.clf()
-
-                                # combined_density
-                                plt.figure(figsize=(10, 5))
-                                plt.xlabel('Discriminator Responses')
-                                plt.ylabel('Density')
-
-                                for i, D_epoch in enumerate(D_epochs + [final_D_epoch]):
-                                    alpha_value = 0.8 if D_epoch == final_D_epoch else 0.2 + (i / (len(D_epochs) + 1) * 0.5)
-                                    generated, real = load_responses(D_epoch)
-                                    plot_kde(generated, real, alpha_value)
-
-                                plt.legend(['Generated', 'Real'])
-                                plt.title('Discriminator Response Distributions Over Iteration')
-                                plt.xticks(fontsize=15)
-                                plt.yticks(fontsize=15)
-                                plt.tight_layout()
-                                # plt.savefig(f"{responses_path}/combined_density.tiff", dpi=300)
-                                # plt.show()
-                                plt.clf()
-
                                 # individual_density_plots
                                 if len(D_epochs) != 5:
                                     fig, axes = plt.subplots(1, len(D_epochs) + 1, figsize=((len(D_epochs) + 1) * 5, 5))
@@ -202,48 +165,7 @@ for parameter in os.listdir(path):
                     tick_positions = np.arange(min_epoch, max_epoch + tick_interval, tick_interval)
                     tick_labels = np.arange(0, 100001, 20000)
 
-                    line_styles = [':', '--', '-', '-.']
-                    markers = ['d', 's', 'o', '^']
                     models_IS = ['WGAN', 'LSGAN', 'Euclidean', 'Chi2']
-
-                    # Plot and save IS epoch graph
-                    plt.figure(figsize=(10, 5))
-                    plt.grid(True, linestyle='--', alpha=0.5)
-                    for model_data in IS_epoch:
-                        if model_data[0] in models_IS:
-                            plt.plot(model_data[1].reshape(-1, 1), label=model_data[0], linewidth=2, linestyle='-')
-                    plt.legend(fontsize=10, loc='lower right')
-                    plt.xlabel('Iteration', fontsize=16)
-                    plt.ylabel('IS Score', fontsize=16)
-                    plt.xticks(fontsize=15)
-                    plt.xticks(tick_positions, tick_labels)
-                    plt.yticks(fontsize=15)
-                    plt.tight_layout()
-                    plt.savefig(os.path.join(image_path, 'IS_epoch.tiff'), dpi=300)
-                    plt.clf()
-                    plt.close()
-
-                    # Gray-scale, epoch
-                    model_styles = dict(zip(models_IS, line_styles))
-
-                    for model_data in IS_epoch:
-                        if model_data[0] in models_IS:
-                            epochs = range(len(model_data[1]))
-                            scores = model_data[1]
-                            filtered_epochs = [epoch for epoch in epochs if epoch % 4 == 0]
-                            filtered_scores = [scores[epoch] for epoch in filtered_epochs]
-                            plt.plot(filtered_epochs, filtered_scores, label=model_data[0], linewidth=2,
-                                     linestyle=model_styles[model_data[0]], color='black')
-                    plt.legend(fontsize=10, loc='lower right')
-                    plt.xlabel('Iteration', fontsize=16)
-                    plt.ylabel('IS Score', fontsize=16)
-                    plt.xticks(fontsize=15)
-                    plt.xticks(tick_positions, tick_labels)
-                    plt.yticks(fontsize=15)
-                    plt.tight_layout()
-                    # plt.savefig(os.path.join(image_path, 'IS_epoch_gs.tiff'), dpi=300)
-                    plt.clf()
-                    plt.close()
 
                     # smoothed graph
                     plt.figure(figsize=(10, 5))
@@ -266,32 +188,6 @@ for parameter in os.listdir(path):
                     plt.yticks(fontsize=15)
                     plt.tight_layout()
                     plt.savefig(os.path.join(image_path, 'IS_epoch_smoothed.tiff'), dpi=300)
-                    plt.clf()
-                    plt.close()
-
-                    # smoothed Gray-scale
-                    plt.figure(figsize=(10, 5))
-                    plt.grid(True, linestyle='--', alpha=0.5)
-                    window_size = 10
-                    kernel = np.ones(window_size) / window_size
-                    model_styles = dict(zip(models_IS, zip(line_styles, markers)))
-                    for model_data in IS_epoch:
-                        if model_data[0] in models_IS:
-                            data_padded = np.pad(model_data[1].reshape(-1), (window_size // 2, window_size // 2 - 1),
-                                                 'edge')
-                            smoothed_data = np.convolve(data_padded, kernel, 'valid')
-                            plt.plot(smoothed_data, label=model_data[0], linewidth=1.5,
-                                     linestyle=model_styles[model_data[0]][0],
-                                     marker=model_styles[model_data[0]][1], color='black', markevery=window_size,
-                                     markersize=4)
-                    plt.legend(fontsize=10, loc='lower right')
-                    plt.xlabel('Iteration', fontsize=16)
-                    plt.ylabel('IS Score', fontsize=16)
-                    plt.xticks(fontsize=15)
-                    plt.xticks(tick_positions, tick_labels)
-                    plt.yticks(fontsize=15)
-                    plt.tight_layout()
-                    # plt.savefig(os.path.join(image_path, 'IS_epoch_smoothed_gs.tiff'), dpi=300)
                     plt.clf()
                     plt.close()
 
