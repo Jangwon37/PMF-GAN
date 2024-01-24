@@ -95,14 +95,6 @@ def load_responses(epoch):
     response = np.load(f"{responses_path}/array/{epoch}.npz")
     return response['generated'], response['real']
 
-def plot_histogram(generated, real, bins, alpha, color_gen, color_real):
-    plt.hist(generated, bins=bins, density=True, alpha=alpha, color=color_gen)
-    plt.hist(real, bins=bins, density=True, alpha=alpha, color=color_real)
-
-def plot_kde(generated, real, alpha):
-    sns.kdeplot(generated.ravel(), color='blue', fill=True, alpha=alpha)
-    sns.kdeplot(real.ravel(), color='red', fill=True, alpha=alpha)
-
 # Main processing loop
 path = '../../result/'
 
