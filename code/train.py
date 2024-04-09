@@ -43,13 +43,14 @@ loss_function_name = [
 # mnist, cifar // epoch: 256, batch size: 128
 # celeba // epoch: 64, batch size: 128
 # lsun // epoch: 43, batch size 128
+# afhq // epoch:, batch size 64
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_epochs", type=int, default=256, help="number of epochs of training")
-    parser.add_argument("--batch_size", type=int, default=128, help="size of the batches")
+    parser.add_argument("--n_epochs", type=int, default=437, help="number of epochs of training")
+    parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
     parser.add_argument("--n_bin", type=int, default=3, help="histogram's bin")
-    parser.add_argument('--dataset', default='cifar10', help='Enter the dataset you want the model to train on')
+    parser.add_argument('--dataset', default='afhq', help='Enter the dataset you want the model to train on')
     parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
     parser.add_argument("--Glr", type=float, default=2, help="G: learning rate")
     parser.add_argument("--Dlr", type=float, default=2, help="D: learning rate")
@@ -75,7 +76,8 @@ def main():
             'cifar10': DataLoad().load_data_cifar10,
             'cifar100': DataLoad().load_data_cifar100,
             'celeba': DataLoad().load_data_celeba,
-            'lsun': DataLoad().load_data_lsun
+            'lsun': DataLoad().load_data_lsun,
+            'afhq': DataLoad().load_data_afhq
         }
         return loaders.get(use_data, lambda: print('train loader error'))(batch_size=opt.batch_size)
 
@@ -100,7 +102,7 @@ def main():
 
         train_loader = load_data(opt.dataset)
 
-        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun']:
+        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
             real_imgs_fid = createFolder(f'../../../data/sample/{opt.dataset}')
             save_samples_from_loader(train_loader, real_imgs_fid)
 
@@ -110,7 +112,8 @@ def main():
             'cifar10': (64, 3),
             'cifar100': (64, 3),
             'celeba': (64, 3),
-            'lsun': (64, 3)
+            'lsun': (64, 3),
+            'afhq': (64, 3)
         }
 
         n_image, channel = dataset_info.get(opt.dataset, (None, None))
@@ -268,8 +271,8 @@ def main():
                     break
 
                 # save IS
-                if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun']:
-                    z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(DEVICE))
+                if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
+                    z = Variable(Tensor(np.random.normal(0, 1, (1000, opt.latent_dim))).to(DEVICE))
                     gen_imgs = generator(z)
 
                     print("Calculating Inception Score...")
@@ -325,12 +328,12 @@ def main():
         else:
             print("generator and discriminator error")
 
-        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun']:
+        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
             for n_loop in range(opt.loop):
                 if torch.isnan(d_loss):
                     break
 
-                z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(DEVICE))
+                z = Variable(Tensor(np.random.normal(0, 1, (1000, opt.latent_dim))).to(DEVICE))
                 gen_imgs = generator(z)
 
                 print("Calculating Inception Score...")

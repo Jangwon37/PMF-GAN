@@ -64,7 +64,8 @@ def main():
             'cifar10': DataLoad().load_data_cifar10,
             'cifar100': DataLoad().load_data_cifar100,
             'celeba': DataLoad().load_data_celeba,
-            'lsun': DataLoad().load_data_lsun
+            'lsun': DataLoad().load_data_lsun,
+            'afhq': DataLoad().load_data_afhq
         }
         return loaders.get(use_data, lambda: print('train loader error'))(batch_size=opt.batch_size)
 
@@ -80,7 +81,8 @@ def main():
         'cifar10': (64, 3),
         'cifar100': (64, 3),
         'celeba': (64, 3),
-        'lsun': (64, 3)
+        'lsun': (64, 3),
+        'afhq': (64, 3)
     }
     n_image, channel = dataset_info.get(opt.dataset, (None, None))
 
@@ -101,7 +103,7 @@ def main():
 
         train_loader = load_data(opt.dataset)
 
-        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun']:
+        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
             real_imgs_fid = createFolder(f'../../../data/sample/{opt.dataset}')
             save_samples_from_loader(train_loader, real_imgs_fid)
 
