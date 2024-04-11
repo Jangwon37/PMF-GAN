@@ -24,7 +24,6 @@ from pytorch_fid.fid_score import calculate_fid_given_paths
 # Setting up CUDA
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 Tensor = torch.cuda.FloatTensor if DEVICE.type == "cuda" else torch.FloatTensor
-cpu = torch.device("cpu")
 
 # Inception model setting
 inception_model = inception_v3(pretrained=True, transform_input=False)
@@ -274,9 +273,11 @@ def main():
 
                 # save IS
                 if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
-                    z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(cpu))
-
-                    generator.to(cpu)
+                    if opt.dataset in ['cifar10', 'cifar100']:
+                        z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(DEVICE))
+                    else:
+                        z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).cpu())
+                        generator.cpu()
 
                     gen_imgs = generator(z)
 
@@ -337,10 +338,11 @@ def main():
             for n_loop in range(opt.loop):
                 if torch.isnan(d_loss):
                     break
-
-                z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(cpu))
-
-                generator.to(cpu)
+                if opt.dataset in ['cifar10', 'cifar100']:
+                    z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(DEVICE))
+                else:
+                    z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).cpu())
+                    generator.cpu()
 
                 gen_imgs = generator(z)
 
