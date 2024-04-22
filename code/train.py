@@ -8,6 +8,7 @@ sys.path.append(os.getcwd())
 import gc
 import time
 import argparse
+from tqdm import tqdm
 from data.data_loader import DataLoad
 from models.loss_model import Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord
 from models.model import Generator, Discriminator
@@ -43,7 +44,7 @@ loss_function_name = [
 # mnist, cifar // epoch: 256, batch size: 128
 # celeba // epoch: 64, batch size: 128
 # lsun // epoch: 43, batch size 128
-# afhq // epoch:, batch size 64
+# afhq // epoch: 437, batch size 64
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -99,6 +100,11 @@ def main():
         savepath = createFolder(
             f"../result/H{opt.n_bin}_B{opt.batch_size}_lr{opt.Glr}_{opt.Dlr}/{opt.dataset}_images/{loss_function_name[model_select]}/")
         png_path = createFolder(f'{savepath}png/')
+        is_path = f"{savepath}IS.csv"
+        is_epoch_path = f"{savepath}IS_epoch.csv"
+        batches_done_path = f"{savepath}batches_done.txt"
+        batches_done_distribution_path = f"{savepath}batches_done_distribution.txt"
+
 
         train_loader = load_data(opt.dataset)
 
@@ -134,22 +140,35 @@ def main():
             adversarial_loss = loss_function[model_select - 2](opt.batch_size, opt.n_bin).to(DEVICE)
             print(loss_function[model_select - 2])
 
-        if (os.path.isfile(savepath + "G_") and os.path.isfile(savepath + "D_")) == True:
+        if os.path.isfile(is_epoch_path):
+            data_count = pd.read_csv(is_epoch_path, header=None).shape[0]
+        else:
+            data_count = 0
+
+        if data_count == opt.n_epochs:
             d_loss = torch.tensor(1)
             # load model
             generator = torch.load(savepath + "G_").to(DEVICE)
             discriminator = torch.load(savepath + "D_").to(DEVICE)
 
-        elif (os.path.isfile(savepath + "G_") and os.path.isfile(savepath + "D_")) == False:
+        else:
+            if (os.path.isfile(savepath + "G_") and os.path.isfile(savepath + "D_")) == True:
+                generator = torch.load(savepath + "G_").to(DEVICE)
+                discriminator = torch.load(savepath + "D_").to(DEVICE)
 
+            else:
+                # Initialize generator and discriminator
+                generator = Generator(opt.dataset, opt.latent_dim).to(DEVICE)
+                discriminator = Discriminator(opt.dataset).to(DEVICE)
+
+            IS_data_b = 0
             start_time = time.time()
-            # Initialize generator and discriminator
-            generator = Generator(opt.dataset, opt.latent_dim).to(DEVICE)
-            discriminator = Discriminator(opt.dataset).to(DEVICE)
 
             # Optimizers
             optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr * opt.Glr, betas=(opt.b1, opt.b2))
             optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr * opt.Dlr, betas=(opt.b1, opt.b2))
+
+            np.random.seed(0)
 
             fix_z = Variable(Tensor(np.random.normal(0, 1, (n_image, opt.latent_dim))).to(DEVICE))
 
@@ -157,12 +176,20 @@ def main():
             #  Training
             # ----------
 
-            IS_data_b = 0
-            batches_done = 0
-            batches_done_distribution = 0
-
-            for epoch in range(opt.n_epochs):
+            for epoch in range(data_count, opt.n_epochs):
                 for i, (imgs, _) in enumerate(train_loader):
+
+                    if os.path.isfile(batches_done_path):
+                        with open(batches_done_path, 'r') as f:
+                            batches_done = int(f.read().strip())
+                    else:
+                        batches_done = 0
+
+                    if os.path.isfile(batches_done_distribution_path):
+                        with open(batches_done_distribution_path, 'r') as f:
+                            batches_done_distribution = int(f.read().strip())
+                    else:
+                        batches_done_distribution = 0
 
                     # Configure input
                     real_imgs = Variable(imgs.type(Tensor).to(DEVICE))
@@ -177,6 +204,10 @@ def main():
 
                     generator.to(DEVICE)
                     generator.eval()
+
+                    gc.collect()
+                    torch.cuda.empty_cache()
+
                     gen_imgs = generator(z).detach()
 
                     if model_select == 0:  # WGAN
@@ -207,6 +238,9 @@ def main():
                         z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))).to(DEVICE))
                         generator.train()
                         # Generate a batch of images
+                        gc.collect()
+                        torch.cuda.empty_cache()
+
                         gen_imgs = generator(z)
 
                         # Loss measures generator's ability to fool the discriminator
@@ -233,6 +267,9 @@ def main():
 
                         batches_done += opt.n_critic
 
+                        with open(batches_done_path, 'w') as f:
+                            f.write(str(batches_done))
+
                     if torch.isnan(d_loss):
                         break
 
@@ -254,6 +291,7 @@ def main():
                             with torch.no_grad():
                                 discriminator_responses_on_generated = discriminator(gen_imgs).cpu().numpy()
                                 discriminator_responses_on_real = discriminator(real_imgs).cpu().numpy()
+
                             save_discriminator_responses(batches_done_distribution, discriminator_responses_on_generated, discriminator_responses_on_real, D_responses_array)
                             plt.hist(discriminator_responses_on_generated, bins=40, density=True, alpha=0.5, label='Generated')
                             plt.hist(discriminator_responses_on_real, bins=40, density=True, alpha=0.5, label='Real')
@@ -264,43 +302,39 @@ def main():
                             plt.clf()
                         batches_done_distribution += 1
 
-                # Clearing cache
-                gc.collect()
-                torch.cuda.empty_cache()
+                        with open(batches_done_distribution_path, 'w') as f:
+                            f.write(str(batches_done_distribution))
 
                 if torch.isnan(d_loss):
                     break
 
                 # save IS
                 if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
-                    if opt.dataset in ['cifar10', 'cifar100']:
-                        z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(DEVICE))
-                    else:
-                        z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).cpu())
-                        generator.cpu()
 
-                    gen_imgs = generator(z)
+                    total_features = []
+                    num_images_per_batch = 100
+                    num_batches = 50
+
+                    for _ in tqdm(range(num_batches)):
+                        z = Variable(Tensor(np.random.normal(0, 1, (num_images_per_batch, opt.latent_dim))).to(DEVICE))
+                        gen_imgs = generator(z)
+                        batch_features = get_feature_vectors(gen_imgs)
+                        total_features.extend(batch_features)
 
                     print("Calculating Inception Score...")
-                    IS_data = inception_score(IgnoreLabelDataset(gen_imgs), resize=True, splits=1,
-                                              batch_size=opt.batch_size)
-                    print(IS_data)
+                    IS_data = calculate_inception_score(total_features)
+                    print("IS Score:", IS_data)
 
-                    if IS_data_b < np.array(IS_data)[0]:
-                        IS_data_b = np.array(IS_data)[0]
+                    if IS_data_b < IS_data:
+                        IS_data_b = IS_data
 
                         # Save model
                         torch.save(generator, savepath + "G")
                         torch.save(discriminator, savepath + "D")
 
                     # Handle CSV writing
-                    is_epoch_path = f"{savepath}IS_epoch.csv"
                     write_mode = 'a' if os.path.isfile(is_epoch_path) else 'w'
-                    pd.DataFrame(IS_data).iloc[0].to_csv(is_epoch_path, mode=write_mode, header=False, index=False)
-
-                    # Clearing cache
-                    gc.collect()
-                    torch.cuda.empty_cache()
+                    pd.DataFrame([IS_data]).iloc[0].to_csv(is_epoch_path, mode=write_mode, header=False, index=False)
 
             generator.eval()
             discriminator.eval()
@@ -331,29 +365,27 @@ def main():
             gc.collect()
             torch.cuda.empty_cache()
 
-        else:
-            print("generator and discriminator error")
-
         if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
             for n_loop in range(opt.loop):
                 if torch.isnan(d_loss):
                     break
-                if opt.dataset in ['cifar10', 'cifar100']:
-                    z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).to(DEVICE))
-                else:
-                    z = Variable(Tensor(np.random.normal(0, 1, (5000, opt.latent_dim))).cpu())
-                    generator.cpu()
 
-                gen_imgs = generator(z)
+                total_features = []
+                num_images_per_batch = 100
+                num_batches = 50
+
+                for _ in tqdm(range(num_batches)):
+                    z = Variable(Tensor(np.random.normal(0, 1, (num_images_per_batch, opt.latent_dim))).to(DEVICE))
+                    gen_imgs = generator(z)
+                    batch_features = get_feature_vectors(gen_imgs)
+                    total_features.extend(batch_features)
 
                 print("Calculating Inception Score...")
-                IS_data = inception_score(IgnoreLabelDataset(gen_imgs), resize=True, splits=1, batch_size=opt.batch_size)
+                IS_data = calculate_inception_score(total_features)
                 print("IS Score:", IS_data)
 
-                is_path = f"{savepath}IS.csv"
                 write_mode = 'a' if os.path.isfile(is_path) else 'w'
-
-                pd.DataFrame(IS_data).iloc[0].to_csv(is_path, mode=write_mode, header=False, index=False)
+                pd.DataFrame([IS_data]).iloc[0].to_csv(is_path, mode=write_mode, header=False, index=False)
 
                 print("Calculating FID Score...")
 
@@ -372,10 +404,6 @@ def main():
                 fid_path = f"{savepath}FID.csv"
                 write_mode = 'a' if os.path.isfile(fid_path) else 'w'
                 pd.DataFrame([fid_score]).to_csv(fid_path, mode=write_mode, header=False, index=False)
-
-                # Clearing cache
-                gc.collect()
-                torch.cuda.empty_cache()
 
         print(loss_function_name[model_select])
 

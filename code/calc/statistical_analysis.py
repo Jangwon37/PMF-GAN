@@ -108,7 +108,7 @@ for parameter in os.listdir(path):
     parameter_path = os.path.join(path, parameter)
     if os.path.isdir(parameter_path):
         for image in os.listdir(parameter_path):
-            if image in ['celeba_images', 'cifar100_images', 'cifar10_images', 'lsun_images']:
+            if image in ['celeba_images', 'cifar100_images', 'cifar10_images', 'lsun_images', 'afhq_images']:
                 image_path = os.path.join(parameter_path, image)
                 if os.path.isdir(image_path):
                     IS_data, FID_data, IS_epoch, IS_result, FID_result = [], [], [], [], []
