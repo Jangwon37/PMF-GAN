@@ -318,9 +318,7 @@ def main():
                     for num_batches_i in tqdm(range(num_batches)):
                         z = Variable(Tensor(np.random.normal(0, 1, (num_images_per_batch, opt.latent_dim))).to(DEVICE))
                         gen_imgs = generator(z).to(DEVICE)
-                        total_features[num_batches_i * num_images_per_batch:(
-                                                                                        num_batches_i + 1) * num_images_per_batch] = get_feature_vectors(
-                            gen_imgs, resize=True)
+                        total_features[num_batches_i * num_images_per_batch:(num_batches_i + 1) * num_images_per_batch] = get_feature_vectors(gen_imgs, resize=True)
 
                     print("Calculating Inception Score...")
                     IS_data = calculate_inception_score(total_features)
@@ -378,9 +376,7 @@ def main():
                 for num_batches_i in tqdm(range(num_batches)):
                     z = Variable(Tensor(np.random.normal(0, 1, (num_images_per_batch, opt.latent_dim))).to(DEVICE))
                     gen_imgs = generator(z).to(DEVICE)
-                    total_features[num_batches_i * num_images_per_batch:(
-                                                                                    num_batches_i + 1) * num_images_per_batch] = get_feature_vectors(
-                        gen_imgs, resize=True)
+                    total_features[num_batches_i * num_images_per_batch:(num_batches_i + 1) * num_images_per_batch] = get_feature_vectors(gen_imgs, resize=True)
 
                 print("Calculating Inception Score...")
                 IS_data = calculate_inception_score(total_features)
