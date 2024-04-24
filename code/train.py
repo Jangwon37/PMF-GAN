@@ -311,15 +311,16 @@ def main():
                 # save IS
                 if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
 
-                    total_features = []
                     num_images_per_batch = 100
                     num_batches = 50
 
-                    for _ in tqdm(range(num_batches)):
+                    total_features = np.zeros((num_images_per_batch * num_batches, 1000))
+                    for num_batches_i in tqdm(range(num_batches)):
                         z = Variable(Tensor(np.random.normal(0, 1, (num_images_per_batch, opt.latent_dim))).to(DEVICE))
-                        gen_imgs = generator(z)
-                        batch_features = get_feature_vectors(gen_imgs)
-                        total_features.extend(batch_features)
+                        gen_imgs = generator(z).to(DEVICE)
+                        total_features[num_batches_i * num_images_per_batch:(
+                                                                                        num_batches_i + 1) * num_images_per_batch] = get_feature_vectors(
+                            gen_imgs, resize=True)
 
                     print("Calculating Inception Score...")
                     IS_data = calculate_inception_score(total_features)
@@ -370,15 +371,16 @@ def main():
                 if torch.isnan(d_loss):
                     break
 
-                total_features = []
                 num_images_per_batch = 100
                 num_batches = 50
 
-                for _ in tqdm(range(num_batches)):
+                total_features = np.zeros((num_images_per_batch * num_batches, 1000))
+                for num_batches_i in tqdm(range(num_batches)):
                     z = Variable(Tensor(np.random.normal(0, 1, (num_images_per_batch, opt.latent_dim))).to(DEVICE))
-                    gen_imgs = generator(z)
-                    batch_features = get_feature_vectors(gen_imgs)
-                    total_features.extend(batch_features)
+                    gen_imgs = generator(z).to(DEVICE)
+                    total_features[num_batches_i * num_images_per_batch:(
+                                                                                    num_batches_i + 1) * num_images_per_batch] = get_feature_vectors(
+                        gen_imgs, resize=True)
 
                 print("Calculating Inception Score...")
                 IS_data = calculate_inception_score(total_features)

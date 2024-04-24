@@ -96,7 +96,7 @@ class Discriminator(nn.Module):
                 *block(BASE_DIM * 2, BASE_DIM * 4, stride=1),
                 nn.AvgPool2d(4)
             )
-            self.fc = nn.Linear(in_features=BASE_DIM * 4, out_features=1, bias=False)
+            self.fc = spectral_norm(nn.Linear(in_features=BASE_DIM * 4, out_features=1, bias=False))
         elif self.model_type in ['celeba', 'lsun']:
             self.model = nn.Sequential(
                 *block(3, BASE_DIM),
@@ -105,7 +105,7 @@ class Discriminator(nn.Module):
                 *block(BASE_DIM * 4, BASE_DIM * 8, stride=1),
                 nn.AvgPool2d(8)
             )
-            self.fc = nn.Linear(in_features=BASE_DIM * 8, out_features=1, bias=False)
+            self.fc = spectral_norm(nn.Linear(in_features=BASE_DIM * 8, out_features=1, bias=False))
         elif self.model_type in ['cifar10', 'cifar100']:
             self.model = nn.Sequential(
                 *block(3, BASE_DIM),
@@ -114,16 +114,18 @@ class Discriminator(nn.Module):
                 *block(BASE_DIM*4, BASE_DIM*8, stride=1),
                 nn.AvgPool2d(8)
             )
-            self.fc = nn.Linear(in_features=BASE_DIM * 8, out_features=1, bias=False)
+            self.fc = spectral_norm(nn.Linear(in_features=BASE_DIM * 8, out_features=1, bias=False))
         else:
             self.model = nn.Sequential(
                 *block(3, BASE_DIM),
                 *block(BASE_DIM, BASE_DIM*2),
                 *block(BASE_DIM*2, BASE_DIM*4),
                 *block(BASE_DIM*4, BASE_DIM*8),
-                nn.AvgPool2d(8)
+                *block(BASE_DIM * 8, BASE_DIM * 16), # add new layer
+                *block(BASE_DIM * 16, BASE_DIM * 32),
+                nn.AvgPool2d(2)
             )
-            self.fc = nn.Linear(in_features=BASE_DIM * 8, out_features=1, bias=False)
+            self.fc = spectral_norm(nn.Linear(in_features=BASE_DIM * 32, out_features=1, bias=False))
 
     def forward(self, img):
         img = self.model(img).view(img.size()[0], -1)
