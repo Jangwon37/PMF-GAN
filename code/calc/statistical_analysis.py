@@ -29,16 +29,22 @@ def process_model_data(model_path) -> Tuple[np.ndarray, np.ndarray, np.ndarray, 
 def create_boxplots(IS_data, FID_data, model_name_IS, model_name_FID, image_path):
     # Preparing data for boxplots
     box_IS = [[IS.flatten(), name, np.average(IS)] for IS, name in zip(IS_data, model_name_IS)]
-    wgan_data = [data for data in box_IS if data[1] == 'WGAN']
-    lsgan_data = [data for data in box_IS if data[1] == 'LSGAN']
-    other_data = [data for data in box_IS if data[1] not in ['WGAN', 'LSGAN']]
+    wgan_data = [data for data in box_IS if data[1] == 'WGAN-GP']
+    lsgan_data = [data for data in box_IS if data[1] == 'LSGAN-GP']
+    spheregan_data = [data for data in box_IS if data[1] == 'SphereGAN']
+    other_data = [data for data in box_IS if data[1] not in ['WGAN-GP', 'LSGAN-GP', 'SphereGAN']]
 
     other_data.sort(key=lambda x: x[2], reverse=True)
 
-    box_IS = wgan_data + lsgan_data + other_data
+    box_IS = wgan_data + lsgan_data + spheregan_data + other_data
 
-    box_FID = [[FID.flatten(), name, -100 if name == 'WGAN' else (-1 if name == 'LSGAN' else np.average(FID))] for
-               FID, name in zip(FID_data, model_name_FID)]
+    # box_FID = [[FID.flatten(), name, -100 if name == 'WGAN-GP' else (-1 if name == 'LSGAN-GP' else np.average(FID))] for
+    #            FID, name in zip(FID_data, model_name_FID)]
+
+    box_FID = [[FID.flatten(), name, -100 if name == 'WGAN-GP' else (
+        -50 if name == 'LSGAN-GP' else (-1 if name == 'SphereGAN' else np.average(FID)))] for FID, name in
+               zip(FID_data, model_name_FID)]
+
     box_FID.sort(key=lambda x: x[2])
 
     # Common color map for models
@@ -66,7 +72,7 @@ def plot_boxplot(axis, box_data, color_map, ylabel, linewidth=2.5, median_linewi
         x = np.random.normal(i + 1, 0.04, size=len(y))
         axis.plot(x, y, 'r.', alpha=0.6, markersize=7)
     axis.set_xticks(range(1, len(box_data) + 1))
-    axis.set_xticklabels(list(zip(*box_data))[1], rotation=40, fontsize=25)
+    axis.set_xticklabels(list(zip(*box_data))[1], rotation=45, fontsize=25)
     axis.set_ylabel(ylabel, fontsize=25)
     axis.tick_params(axis='y', labelsize=18)
     axis.grid(True, which='both', axis='both')
@@ -84,7 +90,7 @@ def plot_boxplot_with_twinx(axis, box_data, color_map, ylabel, linewidth=2.5, me
         x = np.random.normal(i + 1, 0.04, size=len(y))
         ax_twin.plot(x, y, 'r.', alpha=0.6, markersize=7)
     axis.set_xticks(range(1, len(box_data) + 1))
-    axis.set_xticklabels(list(zip(*box_data))[1], rotation=40, fontsize=25)
+    axis.set_xticklabels(list(zip(*box_data))[1], rotation=45, fontsize=25)
     ax_twin.set_ylabel(ylabel, fontsize=25)
     ax_twin.tick_params(axis='y', labelsize=18)
     axis.grid(True, which='both', axis='x')
@@ -103,12 +109,13 @@ real_responses = {}
 D_epochs = [500, 20000, 40000, 60000, 80000]
 final_D_epoch = 100000
 bins = 20
+image_list = ['cifar10_images', 'cifar100_images', 'celeba_images', 'lsun_images', 'afhq_images']
 
 for parameter in os.listdir(path):
     parameter_path = os.path.join(path, parameter)
     if os.path.isdir(parameter_path):
         for image in os.listdir(parameter_path):
-            if image in ['celeba_images', 'cifar100_images', 'cifar10_images', 'lsun_images', 'afhq_images']:
+            if image in image_list:
                 image_path = os.path.join(parameter_path, image)
                 if os.path.isdir(image_path):
                     IS_data, FID_data, IS_epoch, IS_result, FID_result = [], [], [], [], []
@@ -157,7 +164,7 @@ for parameter in os.listdir(path):
                     tick_positions = np.arange(min_epoch, max_epoch + tick_interval, tick_interval)
                     tick_labels = np.arange(0, 100001, 20000)
 
-                    models_IS = ['WGAN', 'LSGAN', 'Euclidean', 'Chi2']
+                    models_IS = ['WGAN-GP', 'LSGAN-GP', 'SphereGAN','Euclidean', 'Chi2']
 
                     # smoothed graph
                     plt.figure(figsize=(10, 5))

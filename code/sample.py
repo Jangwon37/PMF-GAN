@@ -24,8 +24,9 @@ inception_model.fc = torch.nn.Identity()
 inception_model = inception_model.to(DEVICE)
 
 loss_function_name = [
-    "WGAN",
-    "LSGAN",
+    "WGAN-GP",
+    "LSGAN-GP",
+    "SphereGAN",
     "Euclidean",
     "Chi2",
     "Chybyshev",
@@ -33,28 +34,27 @@ loss_function_name = [
     "SquaredChord",
 ]
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n_epochs", type=int, default=256, help="number of epochs of training")
-    parser.add_argument("--batch_size", type=int, default=128, help="size of the batches")
-    parser.add_argument("--n_bin", type=int, default=3, help="histogram's bin")
-    parser.add_argument('--dataset', default='celeba', help='Enter the dataset you want the model to train on')
-    parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
-    parser.add_argument("--Glr", type=float, default=2, help="G: learning rate")
-    parser.add_argument("--Dlr", type=float, default=2, help="D: learning rate")
-    parser.add_argument("--b1", type=float, default=0., help="adam: decay of first order momentum of gradient")
-    parser.add_argument("--b2", type=float, default=0.9, help="adam: decay of first order momentum of gradient")
-    parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--latent_dim", type=int, default=128, help="dimensionality of the latent space")
-    parser.add_argument("--sample_interval", type=int, default=5000, help="interval between image samples")
-    parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
-    parser.add_argument("--mode", default="client")
-    parser.add_argument("--port", default=58614)
-    parser.add_argument("--loop", default=1)
-    return parser.parse_args(args=[])
+# mnist, cifar // epoch: 256, batch size: 128
+# celeba // epoch: 64, batch size: 128
+# lsun // epoch: 43, batch size 128
+# afhq // epoch: 437, batch size 64
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--n_epochs", type=int, default=437, help="number of epochs of training")
+parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
+parser.add_argument("--n_bin", type=int, default=3, help="histogram's bin")
+parser.add_argument('--dataset', default='afhq', help='Enter the dataset you want the model to train on')
+parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
+parser.add_argument("--Glr", type=float, default=2, help="G: learning rate")
+parser.add_argument("--Dlr", type=float, default=2, help="D: learning rate")
+parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
+parser.add_argument("--latent_dim", type=int, default=128, help="dimensionality of the latent space")
+parser.add_argument("--top_is", type=bool, default=False, help="Training load when top_is is large")
+parser.add_argument("--mode", default="client")
+parser.add_argument("--port", default=58614)
 
 def main():
-    opt = get_args()
+    opt = parser.parse_args()
     print(opt)
 
     def load_data(use_data):
@@ -89,7 +89,7 @@ def main():
     fix_z = Variable(Tensor(np.random.normal(0, 1, (n_image, opt.latent_dim))).to(DEVICE))
 
     loop_start = 100
-    all_model = 107
+    all_model = 108
     for model_loop in range(loop_start, all_model, 1):
         rmb = -1
         if model_select == 9:
@@ -101,26 +101,23 @@ def main():
             f"../result/H{opt.n_bin}_B{opt.batch_size}_lr{opt.Glr}_{opt.Dlr}/{opt.dataset}_images/{loss_function_name[model_select]}/")
         png_path = createFolder(f'{savepath}png/')
 
-        train_loader = load_data(opt.dataset)
-
-        if opt.dataset in ['cifar10', 'cifar100', 'celeba', 'lsun', 'afhq']:
-            real_imgs_fid = createFolder(f'../../../data/sample/{opt.dataset}')
-            save_samples_from_loader(train_loader, real_imgs_fid)
-
         # Loss function
         loss_function = [Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord]
 
         if model_select == 0:
-            print('wgan')
+            print('wgan-GP')
         elif model_select == 1:
-            print('lsgan')
+            print('lsgan-GP')
+        elif model_select == 2:
+            print('SphereGAN')
         else:
-            adversarial_loss = loss_function[model_select - 2](opt.batch_size, opt.n_bin).to(DEVICE)
-            print(loss_function[model_select - 2])
+            print(loss_function[model_select - 3])
 
         # load model
-        generator = torch.load(savepath + "G_").to(DEVICE)
-        discriminator = torch.load(savepath + "D_").to(DEVICE)
+        if opt.top_is == True:
+            generator = torch.load(savepath + "G").to(DEVICE)
+        else:
+            generator = torch.load(savepath + "G_").to(DEVICE)
 
         generator.eval()
         gen_imgs_fix = generator(fix_z)

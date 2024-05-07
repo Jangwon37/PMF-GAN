@@ -7,6 +7,7 @@ sys.path.append(os.getcwd())
 
 import gc
 import time
+import shutil
 import argparse
 from tqdm import tqdm
 from data.data_loader import DataLoad
@@ -32,8 +33,8 @@ inception_model.fc = torch.nn.Identity()
 inception_model = inception_model.to(DEVICE)
 
 loss_function_name = [
-    "WGAN",
-    "LSGAN",
+    "WGAN-GP",
+    "LSGAN-GP",
     "Euclidean",
     "Chi2",
     "Chybyshev",
@@ -46,28 +47,28 @@ loss_function_name = [
 # lsun // epoch: 43, batch size 128
 # afhq // epoch: 437, batch size 64
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n_epochs", type=int, default=437, help="number of epochs of training")
-    parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
-    parser.add_argument("--n_bin", type=int, default=3, help="histogram's bin")
-    parser.add_argument('--dataset', default='afhq', help='Enter the dataset you want the model to train on')
-    parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
-    parser.add_argument("--Glr", type=float, default=2, help="G: learning rate")
-    parser.add_argument("--Dlr", type=float, default=2, help="D: learning rate")
-    parser.add_argument("--b1", type=float, default=0., help="adam: decay of first order momentum of gradient")
-    parser.add_argument("--b2", type=float, default=0.9, help="adam: decay of first order momentum of gradient")
-    parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--latent_dim", type=int, default=128, help="dimensionality of the latent space")
-    parser.add_argument("--sample_interval", type=int, default=5000, help="interval between image samples")
-    parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
-    parser.add_argument("--mode", default="client")
-    parser.add_argument("--port", default=58614)
-    parser.add_argument("--loop", default=1)
-    return parser.parse_args(args=[])
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--n_epochs", type=int, default=437, help="number of epochs of training")
+parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
+parser.add_argument("--n_bin", type=int, default=3, help="histogram's bin")
+parser.add_argument('--dataset', default='cifar10', help='Enter the dataset you want the model to train on')
+parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
+parser.add_argument("--Glr", type=float, default=2, help="G: learning rate")
+parser.add_argument("--Dlr", type=float, default=2, help="D: learning rate")
+parser.add_argument("--b1", type=float, default=0., help="adam: decay of first order momentum of gradient")
+parser.add_argument("--b2", type=float, default=0.9, help="adam: decay of first order momentum of gradient")
+parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
+parser.add_argument("--latent_dim", type=int, default=128, help="dimensionality of the latent space")
+parser.add_argument("--sample_interval", type=int, default=5000, help="interval between image samples")
+parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
+parser.add_argument("--top_is", type=bool, default=False, help="Training load when top_is is large")
+parser.add_argument("--mode", default="client")
+parser.add_argument("--port", default=58614)
+parser.add_argument("--loop", type=int, default=1)
 
 def main():
-    opt = get_args()
+    opt = parser.parse_args()
     print(opt)
 
     def load_data(use_data):
@@ -133,9 +134,9 @@ def main():
         loss_function = [Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord]
 
         if model_select == 0:
-            print('WGAN')
+            print('WGAN-GP')
         elif model_select == 1:
-            print('LSGAN')
+            print('LSGAN-GP')
         else:
             adversarial_loss = loss_function[model_select - 2](opt.batch_size, opt.n_bin).to(DEVICE)
             print(loss_function[model_select - 2])
@@ -148,8 +149,12 @@ def main():
         if data_count == opt.n_epochs:
             d_loss = torch.tensor(1)
             # load model
-            generator = torch.load(savepath + "G_").to(DEVICE)
-            discriminator = torch.load(savepath + "D_").to(DEVICE)
+            if opt.top_is == True:
+                generator = torch.load(savepath + "G").to(DEVICE)
+                discriminator = torch.load(savepath + "D").to(DEVICE)
+            else:
+                generator = torch.load(savepath + "G_").to(DEVICE)
+                discriminator = torch.load(savepath + "D_").to(DEVICE)
 
         else:
             if (os.path.isfile(savepath + "G_") and os.path.isfile(savepath + "D_")) == True:
@@ -210,9 +215,9 @@ def main():
 
                     gen_imgs = generator(z).detach()
 
-                    if model_select == 0:  # WGAN
+                    if model_select == 0:  # WGAN-GP
                         fake_loss = -torch.mean(discriminator(real_imgs)) + torch.mean(discriminator(gen_imgs))
-                    elif model_select == 1:  # LSGAN
+                    elif model_select == 1:  # LSGAN-GP
                         real_loss = torch.nn.MSELoss()(discriminator(real_imgs), torch.ones_like(discriminator(real_imgs)))
                         fake_loss_1 = torch.nn.MSELoss()(discriminator(gen_imgs), torch.zeros_like(discriminator(gen_imgs)))
                         fake_loss = (real_loss + fake_loss_1) / 2
@@ -244,9 +249,9 @@ def main():
                         gen_imgs = generator(z)
 
                         # Loss measures generator's ability to fool the discriminator
-                        if model_select == 0:  # WGAN
+                        if model_select == 0:  # WGAN-GP
                             g_loss = -torch.mean(discriminator(gen_imgs))
-                        elif model_select == 1:  # LSGAN
+                        elif model_select == 1:  # LSGAN-GP
                             g_loss = torch.nn.MSELoss()(discriminator(gen_imgs), torch.ones_like(discriminator(gen_imgs)))
                         else:
                             g_loss = adversarial_loss(discriminator(gen_imgs), discriminator(real_imgs))
@@ -402,6 +407,12 @@ def main():
                 fid_path = f"{savepath}FID.csv"
                 write_mode = 'a' if os.path.isfile(fid_path) else 'w'
                 pd.DataFrame([fid_score]).to_csv(fid_path, mode=write_mode, header=False, index=False)
+
+                if os.path.exists(gen_imgs_fid):
+                    shutil.rmtree(gen_imgs_fid)
+                    print("The image folder has been successfully deleted.")
+                else:
+                    print("The image folder does not exist.")
 
         print(loss_function_name[model_select])
 
