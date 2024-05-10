@@ -5,6 +5,9 @@ result/*
 SN_result/*
 !SN_result/.gitkeep
 
+sincos_result/*
+!sincos_result/.gitkeep
+
 code/calc/statistical_analysis_base.py
 
 .idea

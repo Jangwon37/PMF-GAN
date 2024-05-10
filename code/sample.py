@@ -40,8 +40,6 @@ loss_function_name = [
 # afhq // epoch: 437, batch size 64
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=437, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--n_bin", type=int, default=3, help="histogram's bin")
 parser.add_argument('--dataset', default='afhq', help='Enter the dataset you want the model to train on')
 parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
@@ -56,18 +54,6 @@ parser.add_argument("--port", default=58614)
 def main():
     opt = parser.parse_args()
     print(opt)
-
-    def load_data(use_data):
-        loaders = {
-            'mnist': DataLoad().load_data_mnist,
-            'f_mnist': DataLoad().load_data_f_mnist,
-            'cifar10': DataLoad().load_data_cifar10,
-            'cifar100': DataLoad().load_data_cifar100,
-            'celeba': DataLoad().load_data_celeba,
-            'lsun': DataLoad().load_data_lsun,
-            'afhq': DataLoad().load_data_afhq
-        }
-        return loaders.get(use_data, lambda: print('train loader error'))(batch_size=opt.batch_size)
 
     for i, name in enumerate(loss_function_name):
         print(f'{i} : {name}')
@@ -88,6 +74,15 @@ def main():
 
     fix_z = Variable(Tensor(np.random.normal(0, 1, (n_image, opt.latent_dim))).to(DEVICE))
 
+    if opt.dataset in ['cifar10', 'cifar100']:
+        batch_size = 128
+    elif opt.dataset in ['celeba']:
+        batch_size = 128
+    elif opt.dataset in ['lsun']:
+        batch_size = 128
+    else:
+        batch_size = 64
+
     loop_start = 100
     all_model = 108
     for model_loop in range(loop_start, all_model, 1):
@@ -98,7 +93,7 @@ def main():
 
         # image save path
         savepath = createFolder(
-            f"../result/H{opt.n_bin}_B{opt.batch_size}_lr{opt.Glr}_{opt.Dlr}/{opt.dataset}_images/{loss_function_name[model_select]}/")
+            f"../result/H{opt.n_bin}_B{batch_size}_lr{opt.Glr}_{opt.Dlr}/{opt.dataset}_images/{loss_function_name[model_select]}/")
         png_path = createFolder(f'{savepath}png/')
 
         # Loss function
