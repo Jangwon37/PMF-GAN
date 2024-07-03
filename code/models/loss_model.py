@@ -99,3 +99,21 @@ class SquaredChord(nn.Module):
         c = torch.pow((torch.sqrt(x_hist) - torch.sqrt(y_hist)), 2)
         sc_distance = torch.sum(c, dim=0)
         return sc_distance
+
+# 7
+class KLDiv(nn.Module):
+    def __init__(self, batch_size, n_bin):
+        super(KLDiv, self).__init__()
+        self.batch_size = batch_size
+        self.n_bin = n_bin
+
+    def forward(self, x, y):
+        gausshist = GaussianHistogram(bins=self.n_bin, min=0, max=1, sigma=0.5)
+        x, y = torch.squeeze(x), torch.squeeze(y)
+        x_hist, y_hist = gausshist(x)/self.batch_size, gausshist(y)/self.batch_size
+        # x_hist = x_hist / x_hist.sum()
+        # y_hist = y_hist / y_hist.sum()
+        epsilon = 1e-10
+        kl_div = y_hist * torch.log((y_hist + epsilon) / (x_hist + epsilon))
+        kl_divergence = torch.sum(kl_div, dim=0)
+        return kl_divergence

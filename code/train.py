@@ -11,7 +11,7 @@ import shutil
 import argparse
 from tqdm import tqdm
 from data.data_loader import DataLoad
-from models.loss_model import Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord
+from models.loss_model import Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord, KLDiv
 from models.model import Generator, Discriminator
 from utils.score import *
 from utils.utility import *
@@ -40,6 +40,7 @@ loss_function_name = [
     "Chybyshev",
     "Manhattan",
     "SquaredChord",
+    "KLDiv"
 ]
 
 # mnist, cifar // epoch: 256, batch size: 128
@@ -49,10 +50,10 @@ loss_function_name = [
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=256, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=128, help="size of the batches")
+parser.add_argument("--n_epochs", type=int, default=437, help="number of epochs of training")
+parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--n_bin", type=int, default=3, help="histogram's bin")
-parser.add_argument('--dataset', default='cifar10', help='Enter the dataset you want the model to train on')
+parser.add_argument('--dataset', default='afhq', help='Enter the dataset you want the model to train on')
 parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
 parser.add_argument("--Glr", type=float, default=2, help="G: learning rate")
 parser.add_argument("--Dlr", type=float, default=2, help="D: learning rate")
@@ -90,7 +91,7 @@ def main():
     model_select = int(input("loss number :  "))
 
     loop_start = 100
-    all_model = 107
+    all_model = 108
     for model_loop in range(loop_start, all_model, 1):
         rmb = -1
         if model_select == 9:
@@ -131,7 +132,7 @@ def main():
         lambda_gp = 10
 
         # Loss function
-        loss_function = [Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord]
+        loss_function = [Euclidean, Chi2, Chybyshev, Manhattan, SquaredChord, KLDiv]
 
         if model_select == 0:
             print('WGAN-GP')
