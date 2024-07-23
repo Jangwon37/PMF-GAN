@@ -1,6 +1,9 @@
 # Stabilized GAN Models Training with Kernel-Histogram Transformation and Probability Mass Function Distance
 ![figure1](https://github.com/Jangwon37/PMF-GAN/assets/99333410/f77ad3c8-bd9e-45a8-9812-fe2c124386d6)
 
+Article information
+Seo, J., Hwang, H. S., Lee, M., & Seok, J. (2024). Stabilized GAN Models Training with Kernel-Histogram Transformation and Probability Mass Function Distance. Applied Soft Computing, 112003. 
+[https://doi.org/10.1016/j.asoc.2024.112003](https://doi.org/10.1016/j.asoc.2024.112003)
 
 ## Structure of directory
 ```
